@@ -252,3 +252,16 @@ class Job(Trackable):
         returning it.
         """
         return self.task_tree.dump()
+
+    def serialize(self, serializer):
+        """
+        Serializes a Job instance using the provided serializer.
+        """
+        return serializer.serialize_job(self)
+
+    @classmethod
+    def deserialize(cls, serializer, s_state):
+        """
+        Deserializes a Job instance using the provided serializer.
+        """
+        return serializer.deserialize_job(s_state)
