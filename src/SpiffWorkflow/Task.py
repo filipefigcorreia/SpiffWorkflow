@@ -109,8 +109,7 @@ class Task(object):
                     return next
 
 
-    # Pool for assigning a unique id to every new Task.
-    id_pool        = 0
+    # Pool for assigning a unique thread id to every new Task.
     thread_id_pool = 0
 
     def __init__(self, job, spec, parent = None):
@@ -119,13 +118,12 @@ class Task(object):
         """
         assert job  is not None
         assert spec is not None
-        self.__class__.id_pool  += 1
         self.job                 = job
         self.parent              = parent
         self.children            = []
         self.state               = Task.FUTURE
         self.spec                = spec
-        self.id                  = self.__class__.id_pool
+        self.id                  = job.task_id_assigner.get_new_id()
         self.thread_id           = self.__class__.thread_id_pool
         self.last_state_change   = time.time()
         self.attributes          = {}
@@ -588,3 +586,4 @@ class Task(object):
         Prints the subtree as a string for debugging.
         """
         print self.get_dump()
+

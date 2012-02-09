@@ -18,6 +18,16 @@ from mutex                              import mutex
 from SpiffSignal import Trackable
 from Task                               import Task
 
+
+class TaskIdAssigner(object):
+    def __init__(self):
+        self.id_pool = 0
+
+    def get_new_id(self):
+        self.id_pool  += 1
+        return self.id_pool
+
+
 class Job(Trackable):
     """
     The engine that executes a workflow.
@@ -32,6 +42,7 @@ class Job(Trackable):
         Trackable.__init__(self)
         assert workflow is not None
         self.workflow        = workflow
+        self.task_id_assigner = TaskIdAssigner()
         self.attributes      = {}
         self.outer_job       = kwargs.get('parent', self)
         self.locks           = {}
