@@ -76,7 +76,7 @@ class DictionarySerializer(Serializer):
         task.internal_attributes = s_state['internal_attributes']
         return task
 
-class PersistSmallWorkflowTest(unittest.TestCase):
+class SerializeSmallWorkflowTest(unittest.TestCase):
     """Runs persistency tests agains a small and easy to inspect workflowdefinition"""
     def setUp(self):
         self.wf = ASmallWorkflow()
