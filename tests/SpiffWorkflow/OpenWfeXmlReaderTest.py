@@ -1,5 +1,7 @@
 import sys, unittest, re, os.path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
+sys.path.insert(0, os.path.dirname(__file__))
+
 
 from WorkflowTest           import on_reached_cb, \
                                    on_complete_cb, \
