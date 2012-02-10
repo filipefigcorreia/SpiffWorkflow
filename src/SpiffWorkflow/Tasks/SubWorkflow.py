@@ -13,10 +13,10 @@
 # You should have received a copy of the GNU Lesser General Public
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
-import os.path
+import os
 from SpiffWorkflow.Task      import Task
 from SpiffWorkflow.Exception import WorkflowException
-from SpiffWorkflow.Operators import valueof
+from SpiffWorkflow.operators import valueof
 from SpiffWorkflow.Storage   import XmlReader
 from TaskSpec                import TaskSpec
 import SpiffWorkflow.Job
@@ -77,7 +77,7 @@ class SubWorkflow(TaskSpec):
         workflow      = workflow_list[0]
         outer_job     = my_task.job.outer_job
         subjob        = SpiffWorkflow.Job(workflow, parent = outer_job)
-        subjob.signal_connect('completed', self._on_subjob_completed, my_task)
+        subjob.completed_event.connect(self._on_subjob_completed, my_task)
 
         # Integrate the tree of the subjob into the tree of this job.
         my_task._update_children(self.outputs, Task.FUTURE)
@@ -115,7 +115,7 @@ class SubWorkflow(TaskSpec):
                 # just evil but it works.
                 if not child.spec._update_state_hook(child):
                     return
-                child.spec.signal_emit('entered', child.job, child)
+                child.spec.entered_event.emit(child.job, child)
                 child._ready()
 
 

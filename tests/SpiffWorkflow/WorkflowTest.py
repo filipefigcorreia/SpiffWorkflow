@@ -3,7 +3,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from SpiffWorkflow           import Workflow, Job
 from SpiffWorkflow.Tasks     import *
-from SpiffWorkflow.Operators import *
+from SpiffWorkflow.operators import *
 from SpiffWorkflow.Task      import *
 from SpiffWorkflow.Tasks.Simple import Simple
 
@@ -242,8 +242,8 @@ class WorkflowTest(unittest.TestCase):
         taken_path = {'reached':   [],
                       'completed': []}
         for name, task in wf.tasks.iteritems():
-            task.signal_connect('reached',   on_reached_cb,  taken_path['reached'])
-            task.signal_connect('completed', on_complete_cb, taken_path['completed'])
+            task.reached_event.connect(on_reached_cb, taken_path['reached'])
+            task.completed_event.connect(on_complete_cb, taken_path['completed'])
 
         # Execute all tasks within the Job.
         job = Job(wf)

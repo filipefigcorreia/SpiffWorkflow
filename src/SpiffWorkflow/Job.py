@@ -14,9 +14,9 @@
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
 import Tasks
-from mutex                              import mutex
-from SpiffSignal import Trackable
-from Task                               import Task
+from mutex import mutex
+from SpiffWorkflow.util.event import Event
+from Task import Task
 
 
 class TaskIdAssigner(object):
@@ -27,8 +27,7 @@ class TaskIdAssigner(object):
         self.id_pool  += 1
         return self.id_pool
 
-
-class Job(Trackable):
+class Job(object):
     """
     The engine that executes a workflow.
     It is a essentially a facility for managing all branches.
@@ -39,19 +38,21 @@ class Job(Trackable):
         """
         Constructor.
         """
-        Trackable.__init__(self)
         assert workflow is not None
         self.workflow        = workflow
         self.task_id_assigner = TaskIdAssigner()
         self.attributes      = {}
         self.outer_job       = kwargs.get('parent', self)
         self.locks           = {}
-        self.last_node       = None
+        self.last_task       = None
         self.task_tree       = Task(self, Tasks.Simple(workflow, 'Root'))
         self.success         = True
         self.debug           = False
 
-        # Prevent the root node from being executed.
+        # Events.
+        self.completed_event = Event()
+
+        # Prevent the root task from being executed.
         self.task_tree.state = Task.COMPLETED
         start                = self.task_tree._add_child(workflow.start)
 
@@ -70,7 +71,7 @@ class Job(Trackable):
         try:
             next = iter.next()
         except:
-            # No waiting nodes found.
+            # No waiting tasks found.
             return True
         return False
 
@@ -83,15 +84,15 @@ class Job(Trackable):
     def _task_completed_notify(self, task):
         if task.get_name() == 'End':
             self.attributes.update(task.get_attributes())
-        # Update the state of every WAITING node.
-        for node in self._get_waiting_tasks():
-            node.spec._update_state(node)
-        if self.signal_subscribers('completed') == 0:
+        # Update the state of every WAITING task.
+        for thetask in self._get_waiting_tasks():
+            thetask.spec._update_state(thetask)
+        if self.completed_event.n_subscribers() == 0:
             # Since is_completed() is expensive it makes sense to bail
             # out if calling it is not necessary.
             return
         if self.is_completed():
-            self.signal_emit('completed', self)
+            self.completed_event(self)
 
 
     def _get_mutex(self, name):
@@ -126,10 +127,10 @@ class Job(Trackable):
         self.success = success
         cancel       = []
         mask         = Task.NOT_FINISHED_MASK
-        for node in Task.Iterator(self.task_tree, mask):
-            cancel.append(node)
-        for node in cancel:
-            node.cancel()
+        for task in Task.Iterator(self.task_tree, mask):
+            cancel.append(task)
+        for task in cancel:
+            task.cancel()
     
 
     def get_task_from_name(self, name):
@@ -167,19 +168,19 @@ class Job(Trackable):
         return [t for t in Task.Iterator(self.task_tree, state)]
 
 
-    def complete_task_from_id(self, node_id):
+    def complete_task_from_id(self, task_id):
         """
         Runs the task with the given id.
 
-        @type  node_id: integer
-        @param node_id: The id of the Task object.
+        @type  task_id: integer
+        @param task_id: The id of the Task object.
         """
-        if node_id is None:
-            raise WorkflowException(self.workflow, 'node_id is None')
-        for node in self.task_tree:
-            if node.id == node_id:
-                return node.complete()
-        msg = 'A node with the given node_id (%s) was not found' % node_id
+        if task_id is None:
+            raise WorkflowException(self.workflow, 'task_id is None')
+        for task in self.task_tree:
+            if task.id == task_id:
+                return task.complete()
+        msg = 'A task with the given task_id (%s) was not found' % task_id
         raise WorkflowException(self.workflow, msg)
 
 
@@ -198,28 +199,28 @@ class Job(Trackable):
         """
         # Try to pick up where we left off.
         blacklist = []
-        if pick_up and self.last_node is not None:
+        if pick_up and self.last_task is not None:
             try:
-                iter = Task.Iterator(self.last_node, Task.READY)
+                iter = Task.Iterator(self.last_task, Task.READY)
                 next = iter.next()
             except:
                 next = None
-            self.last_node = None
+            self.last_task = None
             if next is not None:
                 if next.complete():
-                    self.last_node = next
+                    self.last_task = next
                     return True
                 blacklist.append(next)
 
         # Walk through all waiting tasks.
-        for node in Task.Iterator(self.task_tree, Task.READY):
-            for blacklisted_node in blacklist:
-                if node._is_descendant_of(blacklisted_node):
+        for task in Task.Iterator(self.task_tree, Task.READY):
+            for blacklisted_task in blacklist:
+                if task._is_descendant_of(blacklisted_task):
                     continue
-            if node.complete():
-                self.last_node = node
+            if task.complete():
+                self.last_task = task
                 return True
-            blacklist.append(node)
+            blacklist.append(task)
         return False
 
 
