@@ -3,12 +3,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 sys.path.insert(0, os.path.dirname(__file__))
 
 
-from WorkflowTest           import on_reached_cb, \
-                                   on_complete_cb, \
-                                   assert_same_path
-from SpiffWorkflow          import Job
-from SpiffWorkflow.Storage  import OpenWfeXmlReader
-from xml.parsers.expat      import ExpatError
+from WorkflowTest import on_reached_cb, on_complete_cb, assert_same_path
+from SpiffWorkflow import Job
+from SpiffWorkflow.storage import OpenWfeXmlReader
+from xml.parsers.expat import ExpatError
 
 class OpenWfeXmlReaderTest(unittest.TestCase):
     def setUp(self):

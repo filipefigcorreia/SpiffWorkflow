@@ -2,14 +2,15 @@ import sys, unittest, re, os.path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 sys.path.insert(0, os.path.dirname(__file__))
 
-import pickle, pprint
-from random                import randint
-from WorkflowTest          import WorkflowTest, \
-                                  on_reached_cb, \
-                                  on_complete_cb, \
-                                  assert_same_path
-from SpiffWorkflow         import Job
-from SpiffWorkflow.Storage import XmlReader
+import pickle
+import pprint
+from random import randint
+from WorkflowTest import WorkflowTest, \
+                         on_reached_cb, \
+                         on_complete_cb, \
+                         assert_same_path
+from SpiffWorkflow import Job
+from SpiffWorkflow.storage import XmlReader
 
 class PersistenceTest(WorkflowTest):
     def setUp(self):
