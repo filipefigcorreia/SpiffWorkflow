@@ -36,9 +36,9 @@ class DictionarySerializer(Serializer):
         # attributes
         s_state['attributes'] = job.attributes
 
-        # last_node
-        value = job.last_node
-        s_state['last_node'] = value.id if not value is None else None
+        # last_task
+        value = job.last_task
+        s_state['last_task'] = value.id if not value is None else None
 
         # outer_job
         #s_state['outer_job'] = job.outer_job.id
@@ -64,8 +64,8 @@ class DictionarySerializer(Serializer):
         # attributes
         job.attributes = s_state['attributes']
 
-        # last_node
-        job.last_node = s_state['last_node']
+        # last_task
+        job.last_task = s_state['last_task']
 
         # outer_job
         #job.outer_job =  find_job_by_id(remap_job_id(s_state['outer_job']))
