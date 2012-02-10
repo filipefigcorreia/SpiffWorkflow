@@ -1,5 +1,4 @@
 import sys, unittest, re, os.path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from SpiffWorkflow.Tasks import *
 from SpiffWorkflow import Workflow, Job, Task
@@ -67,9 +66,9 @@ class PatternTest(unittest.TestCase):
     def setUp(self):
         Task.id_pool = 0
         Task.thread_id_pool = 0
-        self.xml_path = ['xml/spiff/control-flow/',
-                         'xml/spiff/data/',
-                         'xml/spiff/resource/']
+        self.xml_path = ['specs/spiff/control-flow/',
+                         'specs/spiff/data/',
+                         'specs/spiff/resource/']
         self.reader   = XmlReader()
         self.wf       = None
 

@@ -1,6 +1,4 @@
 import sys, unittest, re, os.path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
-sys.path.insert(0, os.path.dirname(__file__))
 
 from WorkflowTest import WorkflowTest
 from SpiffWorkflow.storage import XmlReader
@@ -25,20 +23,20 @@ class XmlReaderTest(WorkflowTest):
                           'foo')
 
         # 0 byte sized file.
-        file = os.path.join(os.path.dirname(__file__), 'xml', 'empty1.xml')
+        file = os.path.join(os.path.dirname(__file__), 'specs', 'empty1.xml')
         self.assertRaises(ExpatError, self.reader.parse_file, file)
 
         # File containing only "<xml></xml>".
-        file = os.path.join(os.path.dirname(__file__), 'xml', 'empty2.xml')
+        file = os.path.join(os.path.dirname(__file__), 'specs', 'empty2.xml')
         self.reader.parse_file(file)
 
         # Read a complete workflow.
-        file = os.path.join(os.path.dirname(__file__), 'xml', 'spiff', 'workflow1.xml')
+        file = os.path.join(os.path.dirname(__file__), 'specs', 'spiff', 'workflow1.xml')
         self.reader.parse_file(file)
 
 
     def testRunWorkflow(self):
-        file = os.path.join(os.path.dirname(__file__), 'xml', 'spiff', 'workflow1.xml')
+        file = os.path.join(os.path.dirname(__file__), 'specs', 'spiff', 'workflow1.xml')
         workflow_list = self.reader.parse_file(file)
         for wf in workflow_list:
             self._runWorkflow(wf)

@@ -1,7 +1,4 @@
 import sys, unittest, re, os.path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
-sys.path.insert(0, os.path.dirname(__file__))
-
 
 from WorkflowTest import on_reached_cb, on_complete_cb, assert_same_path
 from SpiffWorkflow import Job
@@ -37,17 +34,17 @@ class OpenWfeXmlReaderTest(unittest.TestCase):
         # 0 byte sized file.
         self.assertRaises(ExpatError,
                           self.reader.parse_file,
-                          os.path.join(os.path.dirname(__file__), 'xml/empty1.xml'))
+                          os.path.join(os.path.dirname(__file__), 'specs/empty1.xml'))
 
         # File containing only "<xml></xml>".
-        self.reader.parse_file(os.path.join(os.path.dirname(__file__), 'xml/empty2.xml'))
+        self.reader.parse_file(os.path.join(os.path.dirname(__file__), 'specs/empty2.xml'))
 
         # Read a complete workflow.
-        self.reader.parse_file(os.path.join(os.path.dirname(__file__), 'xml/openwfe/workflow1.xml'))
+        self.reader.parse_file(os.path.join(os.path.dirname(__file__), 'specs/openwfe/workflow1.xml'))
 
 
     def testRunWorkflow(self):
-        wf = self.reader.parse_file(os.path.join(os.path.dirname(__file__), 'xml/openwfe/workflow1.xml'))
+        wf = self.reader.parse_file(os.path.join(os.path.dirname(__file__), 'specs/openwfe/workflow1.xml'))
 
         for name in wf[0].tasks:
             wf[0].tasks[name].reached_event.connect(self.on_reached_cb)

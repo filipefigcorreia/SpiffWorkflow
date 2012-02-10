@@ -1,5 +1,4 @@
 import sys, unittest, re, os.path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
 from SpiffWorkflow           import Workflow, Task
 from SpiffWorkflow.Job       import TaskIdAssigner

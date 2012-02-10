@@ -1,6 +1,4 @@
 import sys, unittest, re, os.path
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
-sys.path.insert(0, os.path.dirname(__file__))
 
 import pickle
 import pprint
@@ -69,7 +67,7 @@ class PersistenceTest(WorkflowTest):
 
     def testPickle(self):
         # Read a complete workflow.
-        file = os.path.join(os.path.dirname(__file__), 'xml/spiff/workflow1.xml')
+        file = os.path.join(os.path.dirname(__file__), 'specs/spiff/workflow1.xml')
 
         for i in xrange(5):
             workflow_list = self.reader.parse_file(file)
