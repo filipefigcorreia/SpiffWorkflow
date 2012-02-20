@@ -51,17 +51,20 @@ class TaskSpec(object):
         Similarly, "defines" are properties that, once defined, can no 
         longer be modified.
 
-        @type  parent: Workflow
+        @type  parent: L{SpiffWorkflow.specs.WorkflowSpec}
         @param parent: A reference to the parent (usually a workflow).
         @type  name: string
         @param name: A name for the task.
-        @type  kwargs: dict
-        @param kwargs: The following options are supported:
-            - lock: a list of locks that is aquired on entry of
-              execute() and released on leave of execute().
-            - property_assign: a list of attribute name/value pairs
-            - pre_assign: a list of attribute name/value pairs
-            - post_assign: a list of attribute name/value pairs
+        @type    lock: list(str)
+        @keyword lock: A list of mutex names. The mutex is acquired
+                       on entry of execute() and released on leave of
+                       execute().
+        @type    property_assign: list((str, object))
+        @keyword property_assign: a list of name/value pairs
+        @type    pre_assign: list((str, object))
+        @keyword pre_assign: a list of name/value pairs
+        @type    post_assign: list((str, object))
+        @keyword post_assign: a list of name/value pairs
         """
         assert parent is not None
         assert name   is not None
@@ -202,7 +205,7 @@ class TaskSpec(object):
         if not my_task._is_finished():
             self._predict_hook(my_task)
         for child in my_task.children:
-            child.spec._predict(child, seen[:], looked_ahead)
+            child.task_spec._predict(child, seen[:], looked_ahead)
 
 
     def _predict_hook(self, my_task):
@@ -217,7 +220,7 @@ class TaskSpec(object):
         my_task._inherit_attributes()
         if not self._update_state_hook(my_task):
             return
-        self.entered_event.emit(my_task.job, my_task)
+        self.entered_event.emit(my_task.workflow, my_task)
         my_task._ready()
 
 
@@ -247,7 +250,7 @@ class TaskSpec(object):
 
         # Acquire locks, if any.
         for lock in self.locks:
-            mutex = my_task.job._get_mutex(lock)
+            mutex = my_task.workflow._get_mutex(lock)
             if not mutex.testandset():
                 return False
 
@@ -257,13 +260,13 @@ class TaskSpec(object):
 
         # Run task-specific code.
         result = self._on_ready_before_hook(my_task)
-        self.reached_event.emit(my_task.job, my_task)
+        self.reached_event.emit(my_task.workflow, my_task)
         if result:
             result = self._on_ready_hook(my_task)
 
         # Run user code, if any.
         if result:
-            result = self.ready_event.emit(my_task.job, my_task)
+            result = self.ready_event.emit(my_task.workflow, my_task)
 
         if result:
             # Assign variables, if so requested.
@@ -272,7 +275,7 @@ class TaskSpec(object):
 
         # Release locks, if any.
         for lock in self.locks:
-            mutex = my_task.job._get_mutex(lock)
+            mutex = my_task.workflow._get_mutex(lock)
             mutex.unlock()
         return result
 
@@ -342,19 +345,19 @@ class TaskSpec(object):
         assert my_task is not None
         assert not self.cancelled
 
-        if my_task.job.debug:
+        if my_task.workflow.debug:
             print "Executing task:", my_task.get_name()
 
         if not self._on_complete_hook(my_task):
             return False
 
-        # Notify the Job.
-        my_task.job._task_completed_notify(my_task)
+        # Notify the Workflow.
+        my_task.workflow._task_completed_notify(my_task)
 
-        if my_task.job.debug:
-            my_task.job.outer_job.task_tree.dump()
+        if my_task.workflow.debug:
+            my_task.workflow.outer_job.task_tree.dump()
 
-        self.completed_event.emit(my_task.job, my_task)
+        self.completed_event.emit(my_task.workflow, my_task)
         return True
 
 
@@ -364,7 +367,7 @@ class TaskSpec(object):
 
         @type  my_task: Task
         @param my_task: The associated task in the task tree.
-        @rtype:  boolean
+        @rtype:  bool
         @return: True on success, False otherwise.
         """
         # If we have more than one output, implicitly split.

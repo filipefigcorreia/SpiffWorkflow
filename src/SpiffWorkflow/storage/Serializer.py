@@ -16,12 +16,10 @@ import sys
 from SpiffWorkflow.Task import Task
 
 class Serializer(object):
-    def serialize_job(self, job):
-        raise NotImplementedError("You must implement the serialize_job method.")
+    def serialize_workflow(self, workflow):
+        raise NotImplementedError("You must implement the serialize_workflow method.")
 
-    def deserialize_job(self, s_state):
-        raise NotImplementedError("You must implement the deserialize_job method.")
-
-
+    def deserialize_workflow(self, s_state):
+        raise NotImplementedError("You must implement the deserialize_workflow method.")
 
 

@@ -13,29 +13,33 @@
 # You should have received a copy of the GNU Lesser General Public
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
-from SpiffWorkflow           import Task
+from SpiffWorkflow.Task import Task
 from SpiffWorkflow.Exception import WorkflowException
-from TaskSpec                import TaskSpec
-from Trigger                 import Trigger
+from SpiffWorkflow.specs.TaskSpec import TaskSpec
 
-class CancelTask(Trigger):
+class ThreadStart(TaskSpec):
     """
-    This class implements a trigger that cancels another task (branch).
-    If more than one input is connected, the task performs an implicit
-    multi merge.
-    If more than one output is connected, the task performs an implicit
+    This class implements the task the is placed at the beginning
+    of each thread. It is NOT supposed to be used by in the API, it is
+    used internally only (by the ThreadSplit task).
+    The task has no inputs and at least one output.
+    If more than one output is connected, the task does an implicit
     parallel split.
     """
 
-    def _on_complete_hook(self, my_task):
+    def __init__(self, parent, **kwargs):
         """
-        Runs the task. Should not be called directly.
-        Returns True if completed, False otherwise.
+        Constructor. The name of this task is *always* 'ThreadStart'.
+        
+        @type  parent: TaskSpec
+        @param parent: A reference to the parent task spec.
+        @type  kwargs: dict
+        @param kwargs: See L{SpiffWorkflow.specs.TaskSpec}.
+        """
+        TaskSpec.__init__(self, parent, 'ThreadStart', **kwargs)
+        self.internal = True
 
-        my_task -- the task in which this method is executed
-        """
-        for task_name in self.context:
-            cancel_tasks = my_task.job.get_task_from_name(task_name)
-            for cancel_task in my_task._get_root()._find_any(cancel_tasks):
-                cancel_task.cancel()
+
+    def _on_complete_hook(self, my_task):
+        my_task._assign_new_thread_id()
         return TaskSpec._on_complete_hook(self, my_task)

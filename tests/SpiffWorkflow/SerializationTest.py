@@ -1,12 +1,12 @@
 import sys, unittest, os.path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from SpiffWorkflow           import Workflow, Job
-from SpiffWorkflow.Tasks     import *
-from SpiffWorkflow.Operators import *
-from SpiffWorkflow.Task      import *
-from SpiffWorkflow.Tasks.Simple import Simple
-from SpiffWorkflow.Storage   import Serializer
+from SpiffWorkflow import Workflow
+from SpiffWorkflow.specs import *
+from SpiffWorkflow.operators import *
+from SpiffWorkflow.Task import *
+from SpiffWorkflow.specs.Simple import Simple
+from SpiffWorkflow.storage   import Serializer
 
 class ASmallWorkflow(Workflow):
     def __init__(self):
@@ -37,27 +37,27 @@ def get_class(full_class_name):
     return getattr(sys.modules[module_name], class_name)
 
 class DictionarySerializer(Serializer):
-    def serialize_job(self, job):
+    def serialize_workflow(self, workflow):
         s_state = dict()
-        s_state['attributes'] = job.attributes
-        s_state['last_task'] = job.last_task.id if not job.last_task is None else None
-        s_state['success'] = job.success
-        s_state['task_tree'] = [self.serialize_task(task) for task in Task.Iterator(job.task_tree)]
-        s_state['workflow'] = job.workflow.__class__.__module__ + '.' + job.workflow.__class__.__name__
+        s_state['attributes'] = workflow.attributes
+        s_state['last_task'] = workflow.last_task.id if not workflow.last_task is None else None
+        s_state['success'] = workflow.success
+        s_state['task_tree'] = [self.serialize_task(task) for task in Task.Iterator(workflow.task_tree)]
+        s_state['workflow'] = workflow.spec.__class__.__module__ + '.' + workflow.spec.__class__.__name__
         return s_state
 
-    def deserialize_job(self, s_state):
+    def deserialize_workflow(self, s_state):
         from SpiffWorkflow.Job import Job
-        wf_class = get_class(s_state['workflow'])
-        wf = wf_class()
-        job = Job(wf)
-        job.attributes = s_state['attributes']
-        job.last_task = s_state['last_task']
-        job.success = s_state['success']
-        tasks = [self.deserialize_task(job, serialized_task) for serialized_task in s_state['task_tree']]
-        job.task_tree = [task for task in tasks if task.spec.name == 'Root'][0]
-        job.workflow = wf
-        return job
+        wf_spec_class = get_class(s_state['workflow'])
+        wf_spec = wf_spec_class()
+        workflow = Workflow(wf_spec)
+        workflow.attributes = s_state['attributes']
+        workflow.last_task = s_state['last_task']
+        workflow.success = s_state['success']
+        tasks = [self.deserialize_task(workflow, serialized_task) for serialized_task in s_state['task_tree']]
+        workflow.task_tree = [task for task in tasks if task.spec.name == 'Root'][0]
+        workflow.spec = wf_spec
+        return workflow
 
     def serialize_task(self, task):
         s_state = dict()
@@ -68,8 +68,8 @@ class DictionarySerializer(Serializer):
         s_state['internal_attributes'] = task.internal_attributes
         return s_state
 
-    def deserialize_task(self, job, s_state):
-        task = job.get_task(s_state['id'])
+    def deserialize_task(self, workflow, s_state):
+        task = workflow.get_task(s_state['id'])
         task.state = s_state['state']
         task.last_state_change = s_state['last_state_change']
         task.attributes = s_state['attributes']
@@ -79,39 +79,42 @@ class DictionarySerializer(Serializer):
 class SerializeSmallWorkflowTest(unittest.TestCase):
     """Runs persistency tests agains a small and easy to inspect workflowdefinition"""
     def setUp(self):
-        self.wf = ASmallWorkflow()
-        self.job = self._advance_to_a1(self.wf)
+        self.wf_spec = ASmallWorkflow()
+        self.workflow = self._advance_to_a1(self.wf_spec)
 
-    def _advance_to_a1(self, wf):
-        job = Job(wf)
+    def _advance_to_a1(self, wf_spec):
+        workflow = Workflow(wf_spec)
 
-        tasks = job.get_tasks(Task.READY)
+        tasks = workflow.get_tasks(Task.READY)
         task_start = tasks[0]
-        job.complete_task_from_id(task_start.id)
+        workflow.complete_task_from_id(task_start.id)
 
-        tasks = job.get_tasks(Task.READY)
+        tasks = workflow.get_tasks(Task.READY)
         multichoice = tasks[0]
-        job.complete_task_from_id(multichoice.id)
+        workflow.complete_task_from_id(multichoice.id)
 
-        tasks = job.get_tasks(Task.READY)
+        tasks = workflow.get_tasks(Task.READY)
         task_a1 = tasks[0]
-        job.complete_task_from_id(task_a1.id)
-        return job
+        workflow.complete_task_from_id(task_a1.id)
+        return workflow
 
     def testDictionarySerializer(self):
         """
-        Tests the SelectivePickler serializer for persisting  Jobs and Tasks.
+        Tests the SelectivePickler serializer for persisting Workflows and Tasks.
         """
-        old_job = self.job
+        old_job = self.workflow
         serializer = DictionarySerializer()
         serialized_job = old_job.serialize(serializer)
 
         serializer = DictionarySerializer()
-        new_job = Job.deserialize(serializer, serialized_job)
+        new_job = Workflow.deserialize(serializer, serialized_job)
 
         before = old_job.get_dump()
         after = new_job.get_dump()
         self.assert_(before == after, 'Before:\n' + before + '\n' \
                                     + 'After:\n'  + after  + '\n')
 
-
+def suite():
+    return unittest.TestLoader().loadTestsFromTestCase(PersistSmallWorkflowTest)
+if __name__ == '__main__':
+    unittest.TextTestRunner(verbosity = 2).run(suite())

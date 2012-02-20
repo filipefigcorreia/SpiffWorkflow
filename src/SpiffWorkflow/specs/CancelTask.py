@@ -13,34 +13,22 @@
 # You should have received a copy of the GNU Lesser General Public
 # License along with this library; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
-from SpiffWorkflow.Task      import Task
-from SpiffWorkflow.Exception import WorkflowException
-from TaskSpec                import TaskSpec
+from SpiffWorkflow import Task
+from SpiffWorkflow.specs.TaskSpec import TaskSpec
+from SpiffWorkflow.specs.Trigger import Trigger
 
-class ThreadStart(TaskSpec):
+class CancelTask(Trigger):
     """
-    This class implements the task the is placed at the beginning
-    of each thread. It is NOT supposed to be used by in the API, it is
-    used internally only (by the ThreadSplit task).
-    The task has no inputs and at least one output.
-    If more than one output is connected, the task does an implicit
+    This class implements a trigger that cancels another task (branch).
+    If more than one input is connected, the task performs an implicit
+    multi merge.
+    If more than one output is connected, the task performs an implicit
     parallel split.
     """
 
-    def __init__(self, parent, **kwargs):
-        """
-        Constructor.
-        
-        parent -- a reference to the parent (TaskSpec)
-        """
-        TaskSpec.__init__(self, parent, 'ThreadStart', **kwargs)
-        self.internal = True
-
-
     def _on_complete_hook(self, my_task):
-        """
-        Runs the task. Should not be called directly.
-        Returns True if completed, False otherwise.
-        """
-        my_task._assign_new_thread_id()
+        for task_name in self.context:
+            cancel_tasks = my_task.workflow.get_task_spec_from_name(task_name)
+            for cancel_task in my_task._get_root()._find_any(cancel_tasks):
+                cancel_task.cancel()
         return TaskSpec._on_complete_hook(self, my_task)

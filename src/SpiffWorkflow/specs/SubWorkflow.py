@@ -19,38 +19,51 @@ from SpiffWorkflow.Exception import WorkflowException
 from SpiffWorkflow.operators import valueof
 from SpiffWorkflow.storage import XmlReader
 from TaskSpec import TaskSpec
-import SpiffWorkflow.Job
+import SpiffWorkflow
 
 class SubWorkflow(TaskSpec):
     """
-    A SubWorkflow is a task that wraps a Workflow, such that you can re-use it
-    in multiple places as if it were a task.
+    A SubWorkflow is a task that wraps a WorkflowSpec, such that you can
+    re-use it in multiple places as if it were a task.
     If more than one input is connected, the task performs an implicit
     multi merge.
     If more than one output is connected, the task performs an implicit
     parallel split.
     """
 
-    def __init__(self, parent, name, **kwargs):
+    def __init__(self,
+                 parent,
+                 name,
+                 file,
+                 in_assign = None,
+                 out_assign = None,
+                 **kwargs):
         """
         Constructor.
 
-        parent -- a reference to the parent (TaskSpec)
-        name -- a name for the task (string)
-        kwargs -- may contain the following keys:
-                  file -- name of a file containing a workflow
-                  the name of a workflow file
+        @type  parent: TaskSpec
+        @param parent: A reference to the parent task spec.
+        @type  name: str
+        @param name: The name of the task spec.
+        @type  file: str
+        @param file: The name of a file containing a workflow.
+        @type  in_assign: list(str)
+        @param in_assign: The names of attributes to carry over.
+        @type  out_assign: list(str)
+        @param out_assign: The names of attributes to carry back.
+        @type  kwargs: dict
+        @param kwargs: See L{SpiffWorkflow.specs.TaskSpec}.
         """
-        assert parent  is not None
-        assert name    is not None
-        assert kwargs.has_key('file')
+        assert parent is not None
+        assert name is not None
+        assert file is not None
         TaskSpec.__init__(self, parent, name, **kwargs)
-        self.file       = kwargs.get('file',       None)
-        self.in_assign  = kwargs.get('in_assign',  [])
-        self.out_assign = kwargs.get('out_assign', [])
-        if kwargs.has_key('file'):
+        self.file       = None
+        self.in_assign  = in_assign is not None and in_assign or []
+        self.out_assign = out_assign is not None and out_assign or []
+        if file is not None:
             dirname   = os.path.dirname(parent.file)
-            self.file = os.path.join(dirname, kwargs['file'])
+            self.file = os.path.join(dirname, file)
 
 
     def test(self):
@@ -60,7 +73,7 @@ class SubWorkflow(TaskSpec):
 
 
     def _predict_hook(self, my_task):
-        outputs = [task.spec for task in my_task.children]
+        outputs = [task.task_spec for task in my_task.children]
         for output in self.outputs:
             if output not in outputs:
                 outputs.insert(0, output)
@@ -71,63 +84,57 @@ class SubWorkflow(TaskSpec):
 
 
     def _on_ready_before_hook(self, my_task):
-        file          = valueof(my_task, self.file)
-        xml_reader    = XmlReader()
-        workflow_list = xml_reader.parse_file(file)
-        workflow      = workflow_list[0]
-        outer_job     = my_task.job.outer_job
-        subjob        = SpiffWorkflow.Job(workflow, parent = outer_job)
-        subjob.completed_event.connect(self._on_subjob_completed, my_task)
+        file           = valueof(my_task, self.file)
+        xml_reader     = XmlReader()
+        workflow_list  = xml_reader.parse_file(file)
+        workflow       = workflow_list[0]
+        outer_workflow = my_task.workflow.outer_workflow
+        subworkflow    = SpiffWorkflow.Workflow(workflow, parent = outer_workflow)
+        subworkflow.completed_event.connect(self._on_subworkflow_completed, my_task)
 
-        # Integrate the tree of the subjob into the tree of this job.
+        # Integrate the tree of the subworkflow into the tree of this workflow.
         my_task._update_children(self.outputs, Task.FUTURE)
         for child in my_task.children:
             child._inherit_attributes()
-        for child in subjob.task_tree.children:
+        for child in subworkflow.task_tree.children:
             my_task.children.insert(0, child)
             child.parent = my_task
 
-        my_task._set_internal_attribute(subjob = subjob)
+        my_task._set_internal_attribute(subworkflow = subworkflow)
         return True
 
 
     def _on_ready_hook(self, my_task):
         # Assign variables, if so requested.
-        subjob = my_task._get_internal_attribute('subjob')
-        for child in subjob.task_tree.children:
+        subworkflow = my_task._get_internal_attribute('subworkflow')
+        for child in subworkflow.task_tree.children:
             for assignment in self.in_assign:
                 assignment.assign(my_task, child)
 
         self._predict(my_task)
-        for child in subjob.task_tree.children:
-            child.spec._update_state(child)
+        for child in subworkflow.task_tree.children:
+            child.task_spec._update_state(child)
         return True
 
 
-    def _on_subjob_completed(self, subjob, my_task):
+    def _on_subworkflow_completed(self, subworkflow, my_task):
         # Assign variables, if so requested.
         for child in my_task.children:
-            if child.spec in self.outputs:
+            if child.task_spec in self.outputs:
                 for assignment in self.out_assign:
-                    assignment.assign(subjob, child)
+                    assignment.assign(subworkflow, child)
 
                 # Alright, abusing that hook and sending the signal is 
                 # just evil but it works.
-                if not child.spec._update_state_hook(child):
+                if not child.task_spec._update_state_hook(child):
                     return
-                child.spec.entered_event.emit(child.job, child)
+                child.task_spec.entered_event.emit(child.workflow, child)
                 child._ready()
 
 
     def _on_complete_hook(self, my_task):
-        """
-        Runs the task. Should not be called directly.
-        Returns True if completed, False otherwise.
-
-        my_task -- the task in which this method is executed
-        """
         for child in my_task.children:
-            if child.spec in self.outputs:
+            if child.task_spec in self.outputs:
                 continue
-            child.spec._update_state(child)
+            child.task_spec._update_state(child)
         return True

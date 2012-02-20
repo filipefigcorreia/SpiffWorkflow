@@ -1,13 +1,12 @@
 import sys, unittest, re, os.path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..', 'src'))
 
-from SpiffWorkflow.Tasks import *
-from SpiffWorkflow import Workflow, Job, Task
+from SpiffWorkflow.specs import *
+from SpiffWorkflow import Workflow, Task
 from SpiffWorkflow.storage import XmlReader
 from xml.parsers.expat import ExpatError
 
-
-def on_reached_cb(job, task, taken_path):
+def on_reached_cb(workflow, task, taken_path):
     reached_key = "%s_reached" % str(task.get_name())
     n_reached   = task.get_attribute(reached_key, 0) + 1
     task.set_attribute(**{reached_key:       n_reached,
@@ -35,7 +34,7 @@ def on_reached_cb(job, task, taken_path):
         props.append('='.join((key, str(value))))
     #print "REACHED:", task.get_name(), atts, props
 
-    # Store the list of attributes and properties in the job.
+    # Store the list of attributes and properties in the workflow.
     atts  = ';'.join(atts)
     props = ';'.join(props)
     old   = task.get_attribute('data', '')
@@ -48,20 +47,19 @@ def on_reached_cb(job, task, taken_path):
     # re-assign the function in every step, thus making sure that new
     # children also call on_ready_cb().
     for child in task.children:
-        if not child.spec.reached_event.is_connected(on_reached_cb):
-            child.spec.reached_event.connect(on_reached_cb, taken_path)
-        if not child.spec.completed_event.is_connected(on_complete_cb):
-            child.spec.completed_event.connect(on_complete_cb, taken_path)
+        if not child.task_spec.reached_event.is_connected(on_reached_cb):
+            child.task_spec.reached_event.connect(on_reached_cb, taken_path)
+        if not child.task_spec.completed_event.is_connected(on_complete_cb):
+            child.task_spec.completed_event.connect(on_complete_cb, taken_path)
     return True
 
 
-def on_complete_cb(job, task, taken_path):
+def on_complete_cb(workflow, task, taken_path):
     # Record the path in an attribute.
     indent = '  ' * (task._get_depth() - 1)
     taken_path.append('%s%s' % (indent, task.get_name()))
     #print "COMPLETED:", task.get_name(), task.get_attributes()
     return True
-
 
 class PatternTest(unittest.TestCase):
     def setUp(self):
@@ -70,9 +68,7 @@ class PatternTest(unittest.TestCase):
         self.xml_path = ['xml/spiff/control-flow/',
                          'xml/spiff/data/',
                          'xml/spiff/resource/']
-        self.reader   = XmlReader()
-        self.wf       = None
-
+        self.reader = XmlReader()
 
     def testPattern(self):
         for dirname in self.xml_path:
@@ -91,29 +87,29 @@ class PatternTest(unittest.TestCase):
             print '%s:' % xml_filename
             raise
 
-    def runWorkflow(self, wf, xml_filename):
+    def runWorkflow(self, wf_spec, xml_filename):
         taken_path = []
-        for name in wf.tasks:
-            wf.tasks[name].reached_event.connect(on_reached_cb, taken_path)
-            wf.tasks[name].completed_event.connect(on_complete_cb, taken_path)
+        for name in wf_spec.task_specs:
+            wf_spec.task_specs[name].reached_event.connect(on_reached_cb, taken_path)
+            wf_spec.task_specs[name].completed_event.connect(on_complete_cb, taken_path)
 
-        # Execute all tasks within the Job.
-        job = Job(wf)
-        self.assert_(not job.is_completed(), 'Job is complete before start')
+        # Execute all tasks within the Workflow
+        workflow = Workflow(wf_spec)
+        self.assert_(not workflow.is_completed(), 'Workflow is complete before start')
         try:
-            job.complete_all(False)
+            workflow.complete_all(False)
         except:
-            job.task_tree.dump()
+            workflow.task_tree.dump()
             raise
 
-        #job.task_tree.dump()
-        self.assert_(job.is_completed(),
-                     'complete_all() returned, but job is not complete\n'
-                   + job.task_tree.get_dump())
+        #workflow.task_tree.dump()
+        self.assert_(workflow.is_completed(),
+                     'complete_all() returned, but workflow is not complete\n'
+                   + workflow.task_tree.get_dump())
 
         # Make sure that there are no waiting tasks left in the tree.
-        for thetask in Task.Iterator(job.task_tree, Task.READY):
-            job.task_tree.dump()
+        for thetask in Task.Iterator(workflow.task_tree, Task.READY):
+            workflow.task_tree.dump()
             raise Exception('Task with state READY: %s' % thetask.name)
 
         # Check whether the correct route was taken.
@@ -136,7 +132,7 @@ class PatternTest(unittest.TestCase):
             file     = open(filename, 'r')
             expected = file.read()
             file.close()
-            result   = job.get_attribute('data', '')
+            result   = workflow.get_attribute('data', '')
             error    = '%s:\n'       % name
             error   += 'Expected:\n'
             error   += '%s\n'        % expected
