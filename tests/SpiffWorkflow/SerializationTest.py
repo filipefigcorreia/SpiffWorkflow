@@ -8,7 +8,7 @@ from SpiffWorkflow.Task import *
 from SpiffWorkflow.specs.Simple import Simple
 from SpiffWorkflow.storage   import Serializer
 
-class ASmallWorkflow(Workflow):
+class ASmallWorkflow(WorkflowSpec):
     def __init__(self):
         super(ASmallWorkflow, self).__init__(name = "A Small Workflow")
 
@@ -47,7 +47,6 @@ class DictionarySerializer(Serializer):
         return s_state
 
     def deserialize_workflow(self, s_state):
-        from SpiffWorkflow.Job import Job
         wf_spec_class = get_class(s_state['workflow'])
         wf_spec = wf_spec_class()
         workflow = Workflow(wf_spec)
@@ -55,7 +54,7 @@ class DictionarySerializer(Serializer):
         workflow.last_task = s_state['last_task']
         workflow.success = s_state['success']
         tasks = [self.deserialize_task(workflow, serialized_task) for serialized_task in s_state['task_tree']]
-        workflow.task_tree = [task for task in tasks if task.spec.name == 'Root'][0]
+        workflow.task_tree = [task for task in tasks if task.task_spec.name == 'Root'][0]
         workflow.spec = wf_spec
         return workflow
 
