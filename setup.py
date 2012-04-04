@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 from os.path    import dirname, join
-srcdir = join(dirname(__file__), 'src')
+srcdir = join(dirname(__file__), 'spiffworkflow')
 setup(name             = 'SpiffWorkflow',
       version          = '0.3.0',
       description      = 'A workflow framework based on www.workflowpatterns.com',
